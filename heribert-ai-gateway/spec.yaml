@@ -1,0 +1,57 @@
+schemaVersion: '1'
+kind: mixin
+name: heribert-ai-gateway
+displayName: Heribert AI Gateway for Pi (LiteLLM provider)
+description: Proxy-managed Heribert credentials + pi-provider-litellm extension.
+
+credentials:
+  sources:
+    heribert-ai-gateway:
+      env:
+        - LITELLM_API_KEY
+
+network:
+  allowedDomains:
+    # Sandbox-Grundausstattung
+    - 'download.docker.com:443'
+    - 'ports.ubuntu.com:443'
+    - 'ports.ubuntu.com:80'
+    # Pi + Extension-Install
+    - 'api.github.com:443'
+    - 'github.com:443'
+    - 'release-assets.githubusercontent.com:443'
+    # Heribert
+    - 'ai-gateway.heribert.innoq.ai:443'
+  serviceDomains:
+    ai-gateway.heribert.innoq.ai: heribert-ai-gateway
+  serviceAuth:
+    heribert-ai-gateway:
+      headerName: Authorization
+      valueFormat: 'Bearer %s'
+
+environment:
+  proxyManaged:
+    - LITELLM_API_KEY
+  variables:
+    LITELLM_BASE_URL: 'https://ai-gateway.heribert.innoq.ai'
+    LITELLM_API_KEY: 'proxyManaged'
+
+commands:
+  install:
+    - user: '1000'
+      command: 'pi install npm:pi-provider-litellm'
+      description: 'Install pi-provider-litellm extension'
+    - user: '1000'
+      command: 'pi install npm:pi-subagents'
+      description: 'Install pi-subagents extension'
+    - user: '1000'
+      description: pi default provider auf litellm setzen
+      command: >
+        node -e '
+        const fs=require("fs"),path=require("path");
+        const p=path.join(process.env.HOME,".pi/agent/settings.json");
+        fs.mkdirSync(path.dirname(p),{recursive:true});
+        const s=fs.existsSync(p)?JSON.parse(fs.readFileSync(p,"utf8")):{};
+        Object.assign(s,{defaultProvider:"litellm",defaultModel:"eu.glm-53",enabledModels: ["eu.*"],subagents:{defaultModel:"eu.glm-53-flash"}});
+        fs.writeFileSync(p,JSON.stringify(s,null,2));
+        '
